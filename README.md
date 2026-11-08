@@ -23,6 +23,8 @@ For a Compose deployment, `docker compose up --build` starts PostgreSQL, runs mi
 
 The game has 12 challenges: five anagrams, two picture sequences, and five Philippine places. Words, accepted answers, and hints are configured in the server-only `src/lib/server/challenges.ts`. Anagram answers ignore capitalization and surrounding whitespace. Place answers use canonical province IDs; Station 3 round 4 accepts either Leyte or Samar.
 
+The landing page shows Tagalog instructions before the MAGLARO button. A copyable announcement with access and troubleshooting instructions is available in [docs/player-announcement.md](docs/player-announcement.md); replace its game-link placeholder before posting.
+
 Station 2 images live in `private-assets/station-2/round-1/` and `round-2/`, numbered `1` through `5` in correct chronological order. JPEG (`.jpg` or `.jpeg`) and PNG (`.png`) files are supported. All groups receive the same fixed initial shuffle. Station 3 uses the filenames in `places`, under `private-assets/station-3/`. Authenticated image endpoints keep source filenames out of browser responses. Images are tracked in Git so CI and Docker builds include them.
 
 Missing content blocks the station from starting. Verify content before the competition and do not change challenges during a race. The ending page displays the group's official total from its three saved station durations.
