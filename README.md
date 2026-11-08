@@ -21,3 +21,9 @@ Missing content blocks the station from starting. Verify content before the comp
 ## Checks
 
 `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`.
+
+## GitHub Actions and container images
+
+`.github/workflows/ci.yml` runs the checks and validates the Docker build for pull requests. Pushes to `main`, tags starting with `v`, and manual workflow runs publish the app and station images to `ghcr.io/mkpautin/habag-at-karera`. Images receive branch/tag and commit tags; `latest` is updated only by `main`. Publication waits for all checks to pass.
+
+The workflow uses `GITHUB_TOKEN` with `packages: write`; no Docker Hub credentials are required. Enable Actions and allow package publication in the repository or organization settings. See `docs/operations.md` for deployment details.
