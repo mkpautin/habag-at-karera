@@ -16,11 +16,15 @@ The game has 12 challenges: five anagrams, two picture sequences, and five Phili
 
 Station 2 images live in `private-assets/station-2/round-1/` and `round-2/`, numbered `1` through `5` in correct chronological order. JPEG (`.jpg` or `.jpeg`) and PNG (`.png`) files are supported. All groups receive the same fixed initial shuffle. Station 3 uses the filenames in `places`, under `private-assets/station-3/`. Authenticated image endpoints keep source filenames out of browser responses. Images are tracked in Git so CI and Docker builds include them.
 
-Missing content blocks the station from starting. Verify content before the competition and do not change challenges during a race. If a race already used the old three-round Station 1, use a fresh competition database; completed station times are never rewritten by these content changes.
+Missing content blocks the station from starting. Verify content before the competition and do not change challenges during a race. The ending page displays the group's official total from its three saved station durations.
+
+An administrator can start a new competition from the admin dashboard using **I-reset ang lahat ng grupo** and typing `RESET`. This clears all group progress, round and station timing records, and attempt limits, and returns connected players to the landing page. Accounts, passwords, and active login sessions remain available. Use this reset before replaying a race that used older challenge content.
 
 ## Checks
 
 `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`.
+
+Database integration tests run when `TEST_DATABASE_URL` points to an empty disposable PostgreSQL database named `habag_test`. They migrate that database and exercise totals, admin authorization, reset notifications, and concurrent submissions. CI provides this database automatically. Do not use a competition database for these tests.
 
 ## GitHub Actions and container images
 

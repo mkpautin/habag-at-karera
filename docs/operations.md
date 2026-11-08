@@ -22,9 +22,15 @@ The project uses pnpm 12 and the scripts listed in `package.json`. Set `DATABASE
 
 Compose provides PostgreSQL, a one-shot migration/seed service, and the standalone Next.js app. The app starts only after migration and seed complete. Use a reverse proxy with HTTPS and SSE buffering disabled for public deployment. Keep the database private and retain its volume between releases.
 
+## Resetting a competition
+
+Log in as `admin`, select **I-reset ang lahat ng grupo**, and type `RESET` to confirm. `POST /api/admin/reset` requires an administrator session and this confirmation. One transaction locks all group rows, removes station and round timing records, clears request-limit windows, and returns every group to `LANDING` with round zero and no finish timestamp. Saved results are cleared; accounts and sessions are retained. Resetting does not change credentials.
+
+The reset publishes a notification for each group after commit so active clients return to the landing page. State versions continue increasing so requests from the previous race cannot advance the new race. Game-state reads use a consistent database snapshot, including the three-station total shown on the ending page.
+
 ## CI and image publication
 
-The `CI and Docker` workflow runs on pull requests, pushes to `main`, `v*` tags, and manual dispatch. Its checks job installs the pinned pnpm version with a frozen lockfile, then runs lint, type checking, challenge tests, and the production build. The Docker job depends on those checks and builds a Linux amd64 image. Pull requests build without registry login or publication.
+The `CI and Docker` workflow runs on pull requests, pushes to `main`, `v*` tags, and manual dispatch. Its checks job installs the pinned pnpm version with a frozen lockfile, then runs lint, type checking, challenge and database integration tests, and the production build. A disposable PostgreSQL service supplies `TEST_DATABASE_URL` for the integration tests. The Docker job depends on those checks and builds a Linux amd64 image. Pull requests build without registry login or publication.
 
 Other triggers publish to `ghcr.io/<repository-owner>/<repository-name>` using the built-in `GITHUB_TOKEN` and the Docker job's `packages: write` permission. For this repository the image is `ghcr.io/mkpautin/habag-at-karera`. Branch, version tag, and `sha-<commit>` tags identify builds; `latest` follows `main` only. The image includes the tracked station assets. The workflow follows the [GitHub Container Registry publishing guide](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images).
 

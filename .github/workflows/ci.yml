@@ -19,6 +19,20 @@ jobs:
     name: Check application
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: habag_test
+          POSTGRES_USER: habag_test
+          POSTGRES_PASSWORD: habag_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U habag_test -d habag_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -36,7 +50,9 @@ jobs:
         run: pnpm lint
       - name: Check types
         run: pnpm typecheck
-      - name: Test challenge answers and images
+      - name: Test game state, resets, answers, and images
+        env:
+          TEST_DATABASE_URL: postgres://habag_test:habag_test_password@localhost:5432/habag_test
         run: pnpm test
       - name: Build application
         run: pnpm build

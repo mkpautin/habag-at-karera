@@ -22,14 +22,20 @@ async function notify(tx: Tx, groupId: string, version: number) {
   await tx.execute(sql`select pg_notify('habag_state', ${JSON.stringify({ groupId, version })})`);
 }
 export async function state(groupId: string) {
-  const [group] = await db.select().from(groups).where(eq(groups.id, groupId));
-  if (!group) throw new AppError(404, 'NOT_FOUND', 'Hindi makita ang grupo.');
-  const station = stationOf(group.phase);
-  const [run] = station ? await db.select().from(stationRuns).where(and(eq(stationRuns.groupId, groupId), eq(stationRuns.stationNumber, station))) : [];
-  const [round] = station && group.currentRound <= roundCounts[station] ? await db.select().from(roundRuns).where(and(eq(roundRuns.groupId, groupId), eq(roundRuns.stationNumber, station), eq(roundRuns.roundNumber, group.currentRound))) : [];
-  const clock = await db.execute<{ now: Date }>(sql`select clock_timestamp() as now`);
-  const challenge = !run?.completedAt && station && round?.startedAt ? station === 1 ? { scrambled: anagrams[group.currentRound - 1]?.scrambled } : station === 2 ? { imageIds: sequenceOrders[group.currentRound - 1] } : { image: `/api/assets/place?round=${group.currentRound}` } : null;
-  return { group: group.name, phase: group.phase, round: group.currentRound, version: group.version, station, stationStartedAt: run?.startedAt?.toISOString() ?? null, stationCompletedAt: run?.completedAt?.toISOString() ?? null, elapsedMs: run?.elapsedMs ?? null, roundStartedAt: round?.startedAt?.toISOString() ?? null, serverTime: new Date(clock.rows[0].now).toISOString(), challenge, contentReady: station ? contentReady(station) : true };
+  return db.transaction(async tx => {
+    const [group] = await tx.select().from(groups).where(eq(groups.id, groupId));
+    if (!group) throw new AppError(404, 'NOT_FOUND', 'Hindi makita ang grupo.');
+    const station = stationOf(group.phase);
+    const runs = await tx.select().from(stationRuns).where(eq(stationRuns.groupId, groupId));
+    const run = runs.find(item => item.stationNumber === station);
+    const [round] = station && group.currentRound <= roundCounts[station] ? await tx.select().from(roundRuns).where(and(eq(roundRuns.groupId, groupId), eq(roundRuns.stationNumber, station), eq(roundRuns.roundNumber, group.currentRound))) : [];
+    const clock = await tx.execute<{ now: Date }>(sql`select clock_timestamp() as now`);
+    const totalElapsedMs = group.phase === 'FINISHED' && runs.length === 3 && runs.every(item => item.completedAt !== null && item.elapsedMs !== null)
+      ? runs.reduce((total, item) => total + (item.elapsedMs ?? 0), 0)
+      : null;
+    const challenge = !run?.completedAt && station && round?.startedAt ? station === 1 ? { scrambled: anagrams[group.currentRound - 1]?.scrambled } : station === 2 ? { imageIds: sequenceOrders[group.currentRound - 1] } : { image: `/api/assets/place?round=${group.currentRound}` } : null;
+    return { group: group.name, phase: group.phase, round: group.currentRound, version: group.version, station, stationStartedAt: run?.startedAt?.toISOString() ?? null, stationCompletedAt: run?.completedAt?.toISOString() ?? null, elapsedMs: run?.elapsedMs ?? null, totalElapsedMs, roundStartedAt: round?.startedAt?.toISOString() ?? null, serverTime: new Date(clock.rows[0].now).toISOString(), challenge, contentReady: station ? contentReady(station) : true };
+  }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
 }
 export async function startGame(groupId: string, version: number) {
   await db.transaction(async tx => {
