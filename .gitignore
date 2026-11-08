@@ -5,3 +5,12 @@ node_modules
 *.tsbuildinfo
 private-assets/**
 !private-assets/.gitkeep
+!private-assets/station-2/
+!private-assets/station-2/round-*/
+!private-assets/station-2/round-*/*.jpg
+!private-assets/station-2/round-*/*.jpeg
+!private-assets/station-2/round-*/*.png
+!private-assets/station-3/
+!private-assets/station-3/*.jpg
+!private-assets/station-3/*.jpeg
+!private-assets/station-3/*.png

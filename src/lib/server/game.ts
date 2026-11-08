@@ -4,8 +4,8 @@ import { db } from '@/lib/db/connection';
 import { groups, roundRuns, stationRuns } from '@/lib/db/schema';
 import { anagrams, contentReady, places, sequenceOrders } from './challenges';
 import { AppError } from './http';
+import { roundCounts } from '@/lib/game-rules';
 
-const roundCounts = [0, 3, 2, 5];
 const stationOf = (phase: string) => phase.startsWith('STATION_') ? Number(phase.slice(-1)) : 0;
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

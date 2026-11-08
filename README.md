@@ -12,12 +12,12 @@ For a Compose deployment, `docker compose up --build` starts PostgreSQL, runs mi
 
 ## Challenge content
 
-The competition is intentionally blocked at stations whose content is missing. Add three records to `src/lib/server/challenges.ts` `anagrams`, and five records to `places`. Each place needs an opaque image filename, a province ID from `src/lib/provinces.ts`, and a hint. Put place images in `private-assets/station-3/`.
+The game has 12 challenges: five anagrams, two picture sequences, and five Philippine places. Words, accepted answers, and hints are configured in the server-only `src/lib/server/challenges.ts`. Anagram answers ignore capitalization and surrounding whitespace. Place answers use canonical province IDs; Station 3 round 4 accepts either Leyte or Samar.
 
-Put Station 2 JPEG images in `private-assets/station-2/round-1/` and `round-2/`, named `1.jpg` to `5.jpg` in correct chronological order. All groups receive the same fixed initial shuffle. The source filenames are never sent to the browser.
+Station 2 images live in `private-assets/station-2/round-1/` and `round-2/`, numbered `1` through `5` in correct chronological order. JPEG (`.jpg` or `.jpeg`) and PNG (`.png`) files are supported. All groups receive the same fixed initial shuffle. Station 3 uses the filenames in `places`, under `private-assets/station-3/`. Authenticated image endpoints keep source filenames out of browser responses. Images are tracked in Git so CI and Docker builds include them.
 
-Before competition, fill in and verify all content, then run the checks below. Do not change challenges during a race.
+Missing content blocks the station from starting. Verify content before the competition and do not change challenges during a race. If a race already used the old three-round Station 1, use a fresh competition database; completed station times are never rewritten by these content changes.
 
 ## Checks
 
-`pnpm typecheck`, `pnpm lint`, `pnpm build`.
+`pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`.
