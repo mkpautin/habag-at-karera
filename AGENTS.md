@@ -4,6 +4,7 @@ This repository is intended for a Next.js application written in TypeScript, wit
 
 ## Working agreements
 
+- Always commit completed changes in focused, atomic Git commits after verification. Stage only relevant files and keep real secrets out of commits.
 - Follow the existing App Router structure under `src/app/`. Keep route entry points small and move reusable UI and server logic into their appropriate modules.
 - Keep TypeScript strict. Prefer inferred types from schemas and database definitions over duplicated handwritten types. Avoid `any`; validate data at trust boundaries.
 - Treat Server Components as the default. Add `'use client'` only when browser state, effects, or event handlers require it. Keep secrets and database access on the server.
