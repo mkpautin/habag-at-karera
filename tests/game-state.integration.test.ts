@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { test } from 'node:test';
 import { eq } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
@@ -108,6 +110,41 @@ test('finished totals and admin resets remain correct with stale and concurrent 
     assert.equal((await db.select().from(stationRuns)).length, 0);
     assert.equal((await db.select().from(roundRuns)).length, 0);
     assert.equal((await POST(request(adminToken))).status, 200, 'Admin session remains usable after repeated resets.');
+
+    const runSeed = (password: string) => promisify(execFile)(process.execPath, ['--import', 'tsx', 'scripts/seed.ts'], {
+      timeout: 10_000,
+      env: {
+        ...process.env,
+        DATABASE_URL: testUrl,
+        GROUP_1_PASSWORD: password,
+        GROUP_2_PASSWORD: password,
+        GROUP_3_PASSWORD: password,
+        GROUP_4_PASSWORD: password,
+        ADMIN_PASSWORD: password,
+      },
+    });
+    await runSeed('initial-test-password');
+    for (const [index, name] of ['Amihan', 'Buhawi', 'Daluyong', 'Sigwa'].entries()) {
+      const [account] = await db.select().from(accounts).where(eq(accounts.username, `grupo${index + 1}`));
+      const [group] = await db.select().from(groups).where(eq(groups.accountId, account.id));
+      assert.equal(group.name, name);
+    }
+    const [existingAccount] = await db.select().from(accounts).where(eq(accounts.username, 'grupo1'));
+    const [existingGroup] = await db.select().from(groups).where(eq(groups.accountId, existingAccount.id));
+    await db.update(groups).set({ name: 'Grupo 1', phase: 'STATION_1', currentRound: 2, version: 42 }).where(eq(groups.id, existingGroup.id));
+    const [existingRun] = await db.insert(stationRuns).values({ groupId: existingGroup.id, stationNumber: 1, startedAt: finishedAt }).returning();
+    await runSeed('replacement-test-password');
+    const [renamed] = await db.select().from(groups).where(eq(groups.id, existingGroup.id));
+    const [unchangedAccount] = await db.select().from(accounts).where(eq(accounts.id, existingAccount.id));
+    const [unchangedRun] = await db.select().from(stationRuns).where(eq(stationRuns.id, existingRun.id));
+    assert.equal(renamed.name, 'Amihan');
+    assert.equal(renamed.phase, 'STATION_1');
+    assert.equal(renamed.currentRound, 2);
+    assert.equal(renamed.version, 42);
+    assert.equal(unchangedAccount.passwordHash, existingAccount.passwordHash);
+    assert.deepEqual(unchangedRun, existingRun);
+    assert.equal((await db.select().from(accounts)).length, 10, 'Rerunning seed must not duplicate accounts.');
+    assert.equal((await db.select().from(groups)).length, 8, 'Rerunning seed must not duplicate groups.');
   } finally {
     await listener.end().catch(() => undefined);
     await pool.end();

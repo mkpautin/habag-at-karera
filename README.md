@@ -6,7 +6,16 @@ Multiplayer Filipino Amazing Race game for four groups. Next.js, PostgreSQL, Dri
 
 1. Copy `.env.example` to `.env` and replace all `change-me` values. Use passwords of at least 12 characters. For a local app outside Docker, set `DATABASE_URL` to `localhost`; for Compose, set it to `db`.
 2. Start PostgreSQL, then run `pnpm install`, `pnpm db:migrate`, `pnpm db:seed`, and `pnpm dev`.
-3. Open `/login`. Usernames are `grupo1` through `grupo4`, and `admin`.
+3. Open `/login`. Group accounts use the following mapping; the administrator username is `admin`.
+
+| Group | Username | Password variable |
+| --- | --- | --- |
+| Amihan | `grupo1` | `GROUP_1_PASSWORD` |
+| Buhawi | `grupo2` | `GROUP_2_PASSWORD` |
+| Daluyong | `grupo3` | `GROUP_3_PASSWORD` |
+| Sigwa | `grupo4` | `GROUP_4_PASSWORD` |
+
+Rerun `pnpm db:seed` to synchronize names for existing groups. It updates their display names while preserving passwords, sessions, timing records, and progress. Compose also runs this seed during setup.
 
 For a Compose deployment, `docker compose up --build` starts PostgreSQL, runs migrations and idempotent account seeding, then starts the app. Set `DATABASE_URL` to a URL using the `db` host.
 
