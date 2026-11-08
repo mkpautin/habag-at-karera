@@ -10,12 +10,12 @@ Multiplayer Filipino Amazing Race game for four groups. Next.js, PostgreSQL, Dri
 
 | Group | Username | Password variable |
 | --- | --- | --- |
-| Amihan | `grupo1` | `GROUP_1_PASSWORD` |
-| Buhawi | `grupo2` | `GROUP_2_PASSWORD` |
-| Daluyong | `grupo3` | `GROUP_3_PASSWORD` |
-| Sigwa | `grupo4` | `GROUP_4_PASSWORD` |
+| Amihan | `amihan` | `GROUP_1_PASSWORD` |
+| Buhawi | `buhawi` | `GROUP_2_PASSWORD` |
+| Daluyong | `daluyong` | `GROUP_3_PASSWORD` |
+| Sigwa | `sigwa` | `GROUP_4_PASSWORD` |
 
-Rerun `pnpm db:seed` to synchronize names for existing groups. It updates their display names while preserving passwords, sessions, timing records, and progress. Compose also runs this seed during setup.
+Rerun `pnpm db:seed` to synchronize names and usernames for existing groups. It renames `grupo1`–`grupo4` to the lowercase names above on the same account records, preserving passwords, sessions, timing records, and progress. Compose also runs this seed during setup. After seeding, use the new usernames to log in. If both a legacy account and its new username already exist, seeding stops without changing accounts so the conflict can be resolved explicitly.
 
 For a Compose deployment, `docker compose up --build` starts PostgreSQL, runs migrations and idempotent account seeding, then starts the app. Set `DATABASE_URL` to a URL using the `db` host.
 

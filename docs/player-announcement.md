@@ -9,7 +9,7 @@ Amihan, Buhawi, Daluyong, at Sigwa: handa na ba kayo? Magtulungan sa tatlong ist
 
 BAGO MAGSIMULA
 1. Buksan ang link: [ILAGAY ANG LINK NG LARO]
-2. Gamitin ang username at password na ibinigay ng tagapagpadaloy para sa inyong grupo. Huwag ibahagi ang password sa pampublikong komento.
+2. Gamitin ang username ng inyong grupo: amihan, buhawi, daluyong, o sigwa, at ang password na ibinigay ng tagapagpadaloy. Huwag ibahagi ang password sa pampublikong komento.
 3. Maaaring mag-log in ang mga kasama sa kani-kanilang aparato gamit ang parehong account ng grupo. Iisa ang inyong progreso at oras, kaya mag-usap at magtulungan sa mga sagot.
 4. Basahin muna ang mga panuto at tiyaking handa ang lahat. Hintayin ang hudyat ng tagapagpadaloy bago pindutin ang MAGLARO. Isang kasama lamang ang kailangang pumindot nito para sa buong grupo.
 

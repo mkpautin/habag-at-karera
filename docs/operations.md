@@ -18,7 +18,9 @@ Package scripts and the lockfile are authoritative. Before documenting commands,
 
 Apply migrations through a deliberate release step, not concurrently from every application replica. Provide secrets through the platform's secret manager. Confirm runtime health and migration status after deployment, and keep rollback or forward-fix steps available for schema changes.
 
-The project uses pnpm 12 and the scripts listed in `package.json`. Set `DATABASE_URL`, four `GROUP_N_PASSWORD` values, and `ADMIN_PASSWORD` from `.env.example`. `pnpm db:seed` creates missing accounts and groups and synchronizes group display names: `grupo1` → Amihan, `grupo2` → Buhawi, `grupo3` → Daluyong, `grupo4` → Sigwa. It updates only the name on an existing group, preserving progress and timing records. Existing usernames and passwords continue to work; rerunning seed does not rotate passwords.
+The project uses pnpm 12 and the scripts listed in `package.json`. Set `DATABASE_URL`, four `GROUP_N_PASSWORD` values, and `ADMIN_PASSWORD` from `.env.example`. `pnpm db:seed` creates missing accounts and groups and synchronizes group identities: `amihan` → Amihan, `buhawi` → Buhawi, `daluyong` → Daluyong, `sigwa` → Sigwa. The password variables retain their numbered mapping in that order. Existing `grupo1`–`grupo4` accounts are renamed on the same records, preserving their IDs, passwords, sessions, progress, and timing records. The administrator username remains `admin`.
+
+The seed applies the account and group updates in one transaction. Rerunning it does not rotate passwords or create duplicate groups. If a legacy username and its corresponding new username both exist, it stops and rolls back rather than merging accounts or choosing which progress to retain. Resolve that conflict explicitly before rerunning. Use the lowercase group usernames after applying the seed.
 
 Compose provides PostgreSQL, a one-shot migration/seed service, and the standalone Next.js app. The app starts only after migration and seed complete. Use a reverse proxy with HTTPS and SSE buffering disabled for public deployment. Keep the database private and retain its volume between releases.
 

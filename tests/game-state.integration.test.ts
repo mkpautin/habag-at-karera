@@ -125,15 +125,23 @@ test('finished totals and admin resets remain correct with stale and concurrent 
     });
     await runSeed('initial-test-password');
     for (const [index, name] of ['Amihan', 'Buhawi', 'Daluyong', 'Sigwa'].entries()) {
-      const [account] = await db.select().from(accounts).where(eq(accounts.username, `grupo${index + 1}`));
+      const [account] = await db.select().from(accounts).where(eq(accounts.username, name.toLowerCase()));
       const [group] = await db.select().from(groups).where(eq(groups.accountId, account.id));
       assert.equal(group.name, name);
+      // Simulate accounts from a previous deployment, retaining their identities and passwords.
+      await db.update(accounts).set({ username: `grupo${index + 1}` }).where(eq(accounts.id, account.id));
     }
     const [existingAccount] = await db.select().from(accounts).where(eq(accounts.username, 'grupo1'));
     const [existingGroup] = await db.select().from(groups).where(eq(groups.accountId, existingAccount.id));
     await db.update(groups).set({ name: 'Grupo 1', phase: 'STATION_1', currentRound: 2, version: 42 }).where(eq(groups.id, existingGroup.id));
     const [existingRun] = await db.insert(stationRuns).values({ groupId: existingGroup.id, stationNumber: 1, startedAt: finishedAt }).returning();
+    const legacyToken = randomBytes(32).toString('base64url');
+    const [legacySession] = await db.insert(sessions).values({ accountId: existingAccount.id, tokenHash: createHash('sha256').update(legacyToken).digest('hex'), expiresAt: new Date(Date.now() + 60_000) }).returning();
     await runSeed('replacement-test-password');
+    for (const [index, username] of ['amihan', 'buhawi', 'daluyong', 'sigwa'].entries()) {
+      assert.equal((await db.select().from(accounts).where(eq(accounts.username, username))).length, 1);
+      assert.equal((await db.select().from(accounts).where(eq(accounts.username, `grupo${index + 1}`))).length, 0);
+    }
     const [renamed] = await db.select().from(groups).where(eq(groups.id, existingGroup.id));
     const [unchangedAccount] = await db.select().from(accounts).where(eq(accounts.id, existingAccount.id));
     const [unchangedRun] = await db.select().from(stationRuns).where(eq(stationRuns.id, existingRun.id));
@@ -142,9 +150,30 @@ test('finished totals and admin resets remain correct with stale and concurrent 
     assert.equal(renamed.currentRound, 2);
     assert.equal(renamed.version, 42);
     assert.equal(unchangedAccount.passwordHash, existingAccount.passwordHash);
+    assert.equal(unchangedAccount.username, 'amihan');
     assert.deepEqual(unchangedRun, existingRun);
+    const { authenticate, login } = await import('../src/lib/server/auth');
+    const auth = await authenticate(new Request('http://localhost/api/game/state', { headers: { Authorization: `Bearer ${legacyToken}` } }));
+    assert.equal(auth?.sessionId, legacySession.id);
+    assert.equal(auth?.account.id, existingAccount.id);
+    assert.equal(auth?.account.username, 'amihan');
+    assert.equal(auth?.group?.id, existingGroup.id);
+    assert.ok(await login('amihan', 'initial-test-password'));
+    assert.equal(await login('grupo1', 'initial-test-password'), null);
+    assert.equal(await login('amihan', 'replacement-test-password'), null);
+    await runSeed('another-test-password');
     assert.equal((await db.select().from(accounts)).length, 10, 'Rerunning seed must not duplicate accounts.');
     assert.equal((await db.select().from(groups)).length, 8, 'Rerunning seed must not duplicate groups.');
+    const [reseeded] = await db.select().from(accounts).where(eq(accounts.username, 'amihan'));
+    assert.equal(reseeded.id, existingAccount.id);
+    assert.equal(reseeded.passwordHash, existingAccount.passwordHash);
+
+    // A conflict on the last group must roll back earlier renames in the same seed.
+    await db.update(accounts).set({ username: 'grupo1' }).where(eq(accounts.id, existingAccount.id));
+    await db.insert(accounts).values({ username: 'grupo4', passwordHash: 'duplicate-test-account', role: 'GROUP' });
+    await assert.rejects(runSeed('conflict-test-password'), /Both grupo4 and sigwa exist/);
+    assert.equal((await db.select().from(accounts).where(eq(accounts.username, 'grupo1')))[0].id, existingAccount.id);
+    assert.equal((await db.select().from(accounts).where(eq(accounts.username, 'amihan'))).length, 0);
   } finally {
     await listener.end().catch(() => undefined);
     await pool.end();
