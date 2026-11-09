@@ -6,7 +6,7 @@ Multiplayer Filipino Amazing Race game for four groups. Next.js, PostgreSQL, Dri
 
 1. Copy `.env.example` to `.env` and replace all `change-me` values. Use passwords of at least 12 characters. For a local app outside Docker, set `DATABASE_URL` to `localhost`; for Compose, set it to `db`.
 2. Start PostgreSQL, then run `pnpm install`, `pnpm db:migrate`, `pnpm db:seed`, and `pnpm dev`.
-3. Open `/login`. Group accounts use the following mapping; the administrator username is `admin`.
+3. Open `/` for the public introduction and station previews, then `/login` to join. Group accounts use the following mapping; the administrator username is `admin`.
 
 | Group | Username | Password variable |
 | --- | --- | --- |
@@ -23,7 +23,7 @@ For a Compose deployment, `docker compose up --build` starts PostgreSQL, runs mi
 
 The game has 12 challenges: five anagrams, two picture sequences, and five Philippine places. Words, accepted answers, and hints are configured in the server-only `src/lib/server/challenges.ts`. Anagram answers ignore capitalization and surrounding whitespace. Place answers use canonical province IDs; Station 3 round 4 accepts either Leyte or Samar.
 
-The landing page shows Tagalog instructions before the MAGLARO button. A copyable announcement with access and troubleshooting instructions is available in [docs/player-announcement.md](docs/player-announcement.md); replace its game-link placeholder before posting.
+The authenticated pre-game screen shows Tagalog instructions before the MAGLARO button. The public landing page previews the three stations without starting a timer. Players see their group, current station, and round progress throughout the race. The interface uses a cream notebook theme with distinct station colors, keyboard focus states, mobile layouts, and reduced-motion support. A copyable announcement with access and troubleshooting instructions is available in [docs/player-announcement.md](docs/player-announcement.md); replace its game-link placeholder before posting.
 
 Station 2 images live in `private-assets/station-2/round-1/` and `round-2/`, numbered `1` through `5` in correct chronological order. JPEG (`.jpg` or `.jpeg`) and PNG (`.png`) files are supported. All groups receive the same fixed initial shuffle. Station 3 uses the filenames in `places`, under `private-assets/station-3/`. Authenticated image endpoints keep source filenames out of browser responses. Images are tracked in Git so CI and Docker builds include them.
 

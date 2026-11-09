@@ -1,44 +1,747 @@
-'use client';
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
-import { DndContext, closestCenter, useSensor, useSensors, PointerSensor, KeyboardSensor, type DragEndEvent } from '@dnd-kit/core';
-import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { api, streamEvents, token, TOKEN_KEY } from '@/lib/client';
-import { roundCounts as counts, totalRounds } from '@/lib/game-rules';
-import { PlayerInstructions } from './PlayerInstructions';
+"use client";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import {
+  DndContext,
+  closestCenter,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  KeyboardSensor,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { api, streamEvents, token, TOKEN_KEY } from "@/lib/client";
+import { roundCounts as counts, totalRounds } from "@/lib/game-rules";
+import { PlayerInstructions } from "./PlayerInstructions";
+import {
+  SiteHeader,
+  SiteFooter,
+  StationCards,
+  StationTrail,
+  stations,
+} from "./GameDesign";
 
-type GameState = { group: string; phase: string; round: number; version: number; station: number; stationStartedAt: string | null; stationCompletedAt: string | null; elapsedMs: number | null; totalElapsedMs: number | null; roundStartedAt: string | null; serverTime: string; contentReady: boolean; challenge: null | { scrambled?: string; imageIds?: string[]; image?: string } };
+type GameState = {
+  group: string;
+  phase: string;
+  round: number;
+  version: number;
+  station: number;
+  stationStartedAt: string | null;
+  stationCompletedAt: string | null;
+  elapsedMs: number | null;
+  totalElapsedMs: number | null;
+  roundStartedAt: string | null;
+  serverTime: string;
+  contentReady: boolean;
+  challenge: null | { scrambled?: string; imageIds?: string[]; image?: string };
+};
 type Province = { id: string; name: string };
-const formatTime = (ms: number) => `${String(Math.floor(ms / 60000)).padStart(2, '0')}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
+const formatTime = (ms: number) =>
+  `${String(Math.floor(ms / 60000)).padStart(2, "0")}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
 
-function SortableImage({ id, src, index, length, move }: { id: string; src?: string; index: number; length: number; move: (from: number, to: number) => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-  return <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className="flex items-center gap-3 rounded-xl border bg-white p-3 shadow-sm"><button type="button" className="cursor-grab rounded-lg bg-emerald-100 px-3 py-2" {...attributes} {...listeners} aria-label={`I-drag ang larawan ${index + 1}`}>☰</button><span className="w-7 font-bold">{index + 1}</span>{src ? <img src={src} alt={`Larawan ${index + 1}`} className="h-24 w-40 rounded-lg object-cover" /> : <div className="grid h-24 w-40 place-items-center bg-slate-100">Larawan</div>}<div className="ml-auto flex gap-1"><button type="button" disabled={index === 0} onClick={() => move(index, index - 1)} className="rounded border px-2" aria-label={`Itaas ang larawan ${index + 1}`}>↑</button><button type="button" disabled={index === length - 1} onClick={() => move(index, index + 1)} className="rounded border px-2" aria-label={`Ibaba ang larawan ${index + 1}`}>↓</button></div></li>;
+function SortableImage({
+  id,
+  src,
+  index,
+  length,
+  move,
+}: {
+  id: string;
+  src?: string;
+  index: number;
+  length: number;
+  move: (from: number, to: number) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id });
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className="sortable-card"
+    >
+      <button
+        type="button"
+        className="drag-handle"
+        {...attributes}
+        {...listeners}
+        aria-label={`I-drag ang larawan ${index + 1}`}
+      >
+        ☰
+      </button>
+      <span className="w-7 font-bold">{index + 1}</span>
+      {src ? (
+        <img
+          src={src}
+          alt={`Larawan ${index + 1}`}
+          className="h-24 w-40 rounded-lg bg-slate-50 object-contain"
+        />
+      ) : (
+        <div className="grid h-24 w-40 place-items-center bg-slate-100">
+          Larawan
+        </div>
+      )}
+      <div className="ml-auto flex gap-1">
+        <button
+          type="button"
+          disabled={index === 0}
+          onClick={() => move(index, index - 1)}
+          className="move-button"
+          aria-label={`Itaas ang larawan ${index + 1}`}
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          disabled={index === length - 1}
+          onClick={() => move(index, index + 1)}
+          className="move-button"
+          aria-label={`Ibaba ang larawan ${index + 1}`}
+        >
+          ↓
+        </button>
+      </div>
+    </li>
+  );
 }
 
 export function Play() {
   const router = useRouter();
-  const [game, setGame] = useState<GameState | null>(null); const [error, setError] = useState(''); const [notice, setNotice] = useState(''); const [answer, setAnswer] = useState(''); const [hint, setHint] = useState(''); const [order, setOrder] = useState<string[]>([]); const [images, setImages] = useState<Record<string, string>>({}); const [provinces, setProvinces] = useState<Province[]>([]); const [filter, setFilter] = useState(''); const [elapsed, setElapsed] = useState(0); const [busy, setBusy] = useState(false);
-  const acceptState = useCallback((next: GameState) => { setGame(current => current && current.version > next.version ? current : next); }, []);
-  const refresh = useCallback(async () => { try { acceptState(await api<GameState>('/api/game/state')); setError(''); } catch (cause) { if ((cause as { status?: number }).status === 401) router.replace('/login'); else setError(cause instanceof Error ? cause.message : 'Hindi makuha ang laro.'); } }, [router, acceptState]);
-  useEffect(() => { if (!token()) { router.replace('/login'); return; } void refresh(); const controller = new AbortController(); void streamEvents('/api/game/events', () => { void refresh(); }, controller.signal); const reconcile = setInterval(() => { void refresh(); }, 30000); return () => { controller.abort(); clearInterval(reconcile); }; }, [refresh, router]);
-  useEffect(() => { if (!game || !game.station || game.stationStartedAt || !game.contentReady) return; let active = true; void api<GameState>('/api/game/station/start', { method: 'POST', body: JSON.stringify({ station: game.station }) }).then(value => { if (active) acceptState(value); }).catch(cause => { if (active) setError(cause instanceof Error ? cause.message : 'Hindi masimulan ang istasyon.'); }); return () => { active = false; }; }, [game, acceptState]);
-  const sequenceKey = game?.challenge?.imageIds?.join(',') ?? '';
-  useEffect(() => { setAnswer(''); setHint(''); setFilter(''); setNotice(''); setOrder(sequenceKey ? sequenceKey.split(',') : []); }, [game?.station, game?.round, sequenceKey]);
-  useEffect(() => { if (!game?.stationStartedAt) { setElapsed(0); return; } const start = performance.now(); const base = Date.parse(game.serverTime) - Date.parse(game.stationStartedAt); const tick = () => setElapsed(game.elapsedMs ?? Math.max(0, base + performance.now() - start)); tick(); const timer = setInterval(tick, 250); return () => clearInterval(timer); }, [game?.stationStartedAt, game?.elapsedMs, game?.serverTime]);
-  useEffect(() => { if (game?.station !== 3) return; void api<Province[]>('/api/provinces').then(setProvinces).catch(() => undefined); }, [game?.station]);
+  const [game, setGame] = useState<GameState | null>(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState<{
+    message: string;
+    correct: boolean;
+  } | null>(null);
+  const [answer, setAnswer] = useState("");
+  const [hint, setHint] = useState("");
+  const [order, setOrder] = useState<string[]>([]);
+  const [images, setImages] = useState<Record<string, string>>({});
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [filter, setFilter] = useState("");
+  const [elapsed, setElapsed] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const acceptState = useCallback((next: GameState) => {
+    setGame((current) =>
+      current && current.version > next.version ? current : next,
+    );
+  }, []);
+  const refresh = useCallback(async () => {
+    try {
+      acceptState(await api<GameState>("/api/game/state"));
+      setError("");
+    } catch (cause) {
+      if ((cause as { status?: number }).status === 401)
+        router.replace("/login");
+      else
+        setError(
+          cause instanceof Error ? cause.message : "Hindi makuha ang laro.",
+        );
+    }
+  }, [router, acceptState]);
   useEffect(() => {
-    if (!game?.stationStartedAt || game.stationCompletedAt || !game.challenge) return;
-    const paths = game.station === 2 ? Object.fromEntries((game.challenge.imageIds ?? []).map(id => [id, `/api/assets/sequence?round=${game.round}&id=${id}`])) : game.station === 3 ? { place: game.challenge.image ?? '' } : {};
-    let active = true; const urls: string[] = [];
-    void Promise.all(Object.entries(paths).map(async ([id, path]) => { const response = await fetch(path, { headers: { Authorization: `Bearer ${token()}` } }); if (!response.ok) throw new Error('Hindi ma-load ang larawan.'); const url = URL.createObjectURL(await response.blob()); urls.push(url); return [id, url] as const; })).then(entries => { if (active) setImages(Object.fromEntries(entries)); }).catch(cause => { if (active) setError(cause instanceof Error ? cause.message : 'Hindi ma-load ang larawan.'); });
-    return () => { active = false; urls.forEach(URL.revokeObjectURL); setImages({}); };
-  }, [game?.station, game?.round, game?.stationStartedAt, game?.stationCompletedAt, game?.challenge]);
-  async function mutate(path: string, data: object) { setBusy(true); setError(''); setNotice(''); try { const result = await api<GameState | { state: GameState; correct: boolean; message: string } | { hint: string }>(path, { method: 'POST', body: JSON.stringify(data) }); if ('state' in result) { acceptState(result.state); setNotice(result.message); } else if ('phase' in result) acceptState(result); else if ('hint' in result) setHint(result.hint); } catch (cause) { const issue = cause as Error & { status?: number }; setError(issue.message); if (issue.status === 409) void refresh(); } finally { setBusy(false); } }
-  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
-  function dragEnd(event: DragEndEvent) { const { active, over } = event; if (over && active.id !== over.id) setOrder(current => arrayMove(current, current.indexOf(String(active.id)), current.indexOf(String(over.id)))); }
-  async function signOut() { try { await api('/api/auth/logout', { method: 'POST' }); } finally { sessionStorage.removeItem(TOKEN_KEY); router.replace('/login'); } }
-  if (!game) return <main className="p-8">{error || 'Kinukuha ang laro...'}</main>;
-  return <main className="mx-auto min-h-screen max-w-4xl p-5 md:p-10"><header className="flex items-center justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.25em] text-amber-700">{game.group}</p><h1 className="text-3xl font-black">Habag at Karera</h1></div><button onClick={signOut} className="rounded-xl border px-4 py-2">Mag-log out</button></header><section className="mt-8 rounded-3xl bg-white p-6 shadow-lg md:p-9">{game.phase === 'LANDING' ? <><h2 className="text-3xl font-black">Handa na ba kayo?</h2><p className="mt-3 text-slate-600">Tatlong istasyon. {totalRounds} hamon. Sama-sama sa pagtakbo!</p><PlayerInstructions /><button disabled={busy} onClick={() => mutate('/api/game/start', { version: game.version })} className="mt-7 rounded-xl bg-emerald-800 px-6 py-3 font-bold text-white">MAGLARO</button></> : game.phase === 'FINISHED' ? <><h2 className="text-4xl font-black">Binabati namin kayo!</h2><p className="mt-4">Natapos ng {game.group} ang lahat ng hamon.</p><div className="mt-6 rounded-2xl bg-emerald-50 p-6"><p className="font-semibold">Kabuuang oras</p><p className="mt-2 font-mono text-5xl font-bold">{game.totalElapsedMs === null ? '—' : formatTime(game.totalElapsedMs)}</p></div></> : <><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="text-sm font-bold uppercase text-amber-700">Istasyon {game.station}</p><h2 className="text-2xl font-black">{game.station === 1 ? 'Ayusin ang mga letra' : game.station === 2 ? 'Ayusin ang mga larawan' : 'Tukuyin ang lugar'}</h2></div><div className="rounded-xl bg-emerald-50 px-5 py-3 text-3xl font-mono font-bold" aria-label="Oras">{formatTime(elapsed)}</div></div><p className="mt-4 text-slate-600">Round {game.round} / {counts[game.station]}</p>{!game.contentReady ? <p className="mt-8 rounded-xl bg-amber-50 p-5">Hindi pa handa ang nilalaman ng istasyong ito. Idaragdag pa ang mga salita at larawan.</p> : !game.stationStartedAt ? <p className="mt-8">Sinisimulan ang oras at inihahanda ang hamon...</p> : game.stationCompletedAt ? <div className="mt-8"><p className="text-xl font-bold">Natapos ang istasyon sa {formatTime(game.elapsedMs ?? 0)}.</p><button disabled={busy} onClick={() => mutate('/api/game/transition', { station: game.station, version: game.version })} className="mt-5 rounded-xl bg-emerald-800 px-6 py-3 font-bold text-white">{game.station === 3 ? 'Tapusin' : 'Tuloy'}</button></div> : <><div className="mt-8">{game.station === 1 ? <><p>Ayusin ang mga letra upang makabuo ng salita.</p><p className="mt-5 rounded-xl bg-amber-50 p-5 text-center text-3xl font-black tracking-widest">{game.challenge?.scrambled}</p><form onSubmit={(event: FormEvent) => { event.preventDefault(); void mutate('/api/game/guess', { station: 1, round: game.round, version: game.version, answer }); }} className="mt-5 flex flex-wrap gap-3"><input aria-label="Iyong sagot" required value={answer} onChange={e => setAnswer(e.target.value)} className="min-w-0 flex-1 rounded-xl border p-3" placeholder="Iyong sagot" /><button disabled={busy} className="rounded-xl bg-emerald-800 px-5 py-3 font-bold text-white">Hulaan</button></form></> : game.station === 2 ? <><p>Ayusin ang mga larawan ayon sa tamang pagkakasunod-sunod.</p><DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={dragEnd}><SortableContext items={order} strategy={verticalListSortingStrategy}><ol className="mt-5 grid gap-3">{order.map((id, index) => <SortableImage key={id} id={id} src={images[id]} index={index} length={order.length} move={(from, to) => setOrder(current => arrayMove(current, from, to))} />)}</ol></SortableContext></DndContext><button disabled={busy || Object.keys(images).length !== 5} onClick={() => mutate('/api/game/sequence/check', { round: game.round, version: game.version, order })} className="mt-5 rounded-xl bg-emerald-800 px-5 py-3 font-bold text-white">I-check</button></> : <><p>Saang lalawigan matatagpuan ang lugar na ito?</p>{images.place ? <img src={images.place} alt="Lugar sa Pilipinas" className="mt-5 max-h-80 w-full rounded-xl object-contain" /> : <div className="mt-5 grid h-56 place-items-center rounded-xl bg-slate-100">Kinukuha ang larawan...</div>}<form onSubmit={e => { e.preventDefault(); void mutate('/api/game/guess', { station: 3, round: game.round, version: game.version, answer }); }} className="mt-5 grid gap-3"><label className="grid gap-2">Hanapin ang lalawigan<input value={filter} onChange={e => { setFilter(e.target.value); setAnswer(''); }} className="rounded-xl border p-3" placeholder="Mag-type upang maghanap" /></label><select required value={answer} onChange={e => setAnswer(e.target.value)} className="rounded-xl border p-3" aria-label="Pumili ng lalawigan"><option value="">Pumili ng lalawigan</option>{provinces.filter(x => x.name.toLocaleLowerCase().includes(filter.toLocaleLowerCase())).map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select><button disabled={busy || !images.place} className="rounded-xl bg-emerald-800 px-5 py-3 font-bold text-white">Hulaan</button></form></>}</div>{game.station !== 2 && <button disabled={busy} onClick={() => mutate('/api/game/hint', { station: game.station, round: game.round, version: game.version })} className="mt-6 rounded-xl border border-amber-600 px-5 py-3 font-bold text-amber-800">Gabay</button>}{hint && <p className="mt-3 rounded-xl bg-amber-50 p-4">{hint}</p>}</>}</>}{error && <p role="alert" className="mt-5 text-red-700">{error}</p>}{notice && <p role="status" className="mt-5 text-emerald-800">{notice}</p>}</section></main>;
+    if (!token()) {
+      router.replace("/login");
+      return;
+    }
+    void refresh();
+    const controller = new AbortController();
+    void streamEvents(
+      "/api/game/events",
+      () => {
+        void refresh();
+      },
+      controller.signal,
+    );
+    const reconcile = setInterval(() => {
+      void refresh();
+    }, 30000);
+    return () => {
+      controller.abort();
+      clearInterval(reconcile);
+    };
+  }, [refresh, router]);
+  useEffect(() => {
+    if (!game || !game.station || game.stationStartedAt || !game.contentReady)
+      return;
+    let active = true;
+    void api<GameState>("/api/game/station/start", {
+      method: "POST",
+      body: JSON.stringify({ station: game.station }),
+    })
+      .then((value) => {
+        if (active) acceptState(value);
+      })
+      .catch((cause) => {
+        if (active)
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "Hindi masimulan ang istasyon.",
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [game, acceptState]);
+  const sequenceKey = game?.challenge?.imageIds?.join(",") ?? "";
+  useEffect(() => {
+    setAnswer("");
+    setHint("");
+    setFilter("");
+    setNotice((current) => (current?.correct ? current : null));
+    setOrder(sequenceKey ? sequenceKey.split(",") : []);
+  }, [game?.station, game?.round, sequenceKey]);
+  useEffect(() => {
+    if (!game?.stationStartedAt) {
+      setElapsed(0);
+      return;
+    }
+    const start = performance.now();
+    const base =
+      Date.parse(game.serverTime) - Date.parse(game.stationStartedAt);
+    const tick = () =>
+      setElapsed(
+        game.elapsedMs ?? Math.max(0, base + performance.now() - start),
+      );
+    tick();
+    const timer = setInterval(tick, 250);
+    return () => clearInterval(timer);
+  }, [game?.stationStartedAt, game?.elapsedMs, game?.serverTime]);
+  useEffect(() => {
+    if (game?.station !== 3) return;
+    void api<Province[]>("/api/provinces")
+      .then(setProvinces)
+      .catch(() => undefined);
+  }, [game?.station]);
+  useEffect(() => {
+    if (!game?.stationStartedAt || game.stationCompletedAt || !game.challenge)
+      return;
+    const paths =
+      game.station === 2
+        ? Object.fromEntries(
+            (game.challenge.imageIds ?? []).map((id) => [
+              id,
+              `/api/assets/sequence?round=${game.round}&id=${id}`,
+            ]),
+          )
+        : game.station === 3
+          ? { place: game.challenge.image ?? "" }
+          : {};
+    let active = true;
+    const urls: string[] = [];
+    void Promise.all(
+      Object.entries(paths).map(async ([id, path]) => {
+        const response = await fetch(path, {
+          headers: { Authorization: `Bearer ${token()}` },
+        });
+        if (!response.ok) throw new Error("Hindi ma-load ang larawan.");
+        const url = URL.createObjectURL(await response.blob());
+        urls.push(url);
+        return [id, url] as const;
+      }),
+    )
+      .then((entries) => {
+        if (active) setImages(Object.fromEntries(entries));
+      })
+      .catch((cause) => {
+        if (active)
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "Hindi ma-load ang larawan.",
+          );
+      });
+    return () => {
+      active = false;
+      urls.forEach(URL.revokeObjectURL);
+      setImages({});
+    };
+  }, [
+    game?.station,
+    game?.round,
+    game?.stationStartedAt,
+    game?.stationCompletedAt,
+    game?.challenge,
+  ]);
+  async function mutate(path: string, data: object) {
+    setBusy(true);
+    setError("");
+    setNotice(null);
+    try {
+      const result = await api<
+        | GameState
+        | { state: GameState; correct: boolean; message: string }
+        | { hint: string }
+      >(path, { method: "POST", body: JSON.stringify(data) });
+      if ("state" in result) {
+        acceptState(result.state);
+        setNotice({ message: result.message, correct: result.correct });
+      } else if ("phase" in result) acceptState(result);
+      else if ("hint" in result) setHint(result.hint);
+    } catch (cause) {
+      const issue = cause as Error & { status?: number };
+      setError(issue.message);
+      if (issue.status === 409) void refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+  function dragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id)
+      setOrder((current) =>
+        arrayMove(
+          current,
+          current.indexOf(String(active.id)),
+          current.indexOf(String(over.id)),
+        ),
+      );
+  }
+  async function signOut() {
+    try {
+      await api("/api/auth/logout", { method: "POST" });
+    } finally {
+      sessionStorage.removeItem(TOKEN_KEY);
+      router.replace("/login");
+    }
+  }
+  if (!game)
+    return (
+      <div className="site-shell">
+        <SiteHeader />
+        <main id="main-content" className="loading-panel">
+          <span className="loading-star" aria-hidden="true">
+            ✦
+          </span>
+          <h1>{error ? "Sandali, kagrupo." : "Inihahanda ang karera…"}</h1>
+          <p role={error ? "alert" : "status"}>
+            {error || "Kinukuha ang progreso ng inyong grupo."}
+          </p>
+          {error && (
+            <button className="button" onClick={() => void refresh()}>
+              Subukang muli
+            </button>
+          )}
+        </main>
+      </div>
+    );
+  const finished = game.phase === "FINISHED";
+  const landing = game.phase === "LANDING";
+  const currentStation = stations.find((item) => item.number === game.station);
+  return (
+    <div className="site-shell">
+      <SiteHeader>
+        <span className="group-chip">
+          <span aria-hidden="true">✦</span> {game.group}
+        </span>
+        <button onClick={signOut} className="button button-quiet button-small">
+          Mag-log out <span aria-hidden="true">↗</span>
+        </button>
+      </SiteHeader>
+      <main id="main-content" className="play-layout">
+        <div className="play-title">
+          <div>
+            <p className="eyebrow">
+              {finished
+                ? "MISYON, NATUPAD!"
+                : landing
+                  ? "ANG INYONG KARERA"
+                  : "KAYA NINYO IYAN, KAGRUPO!"}
+            </p>
+            <h1>
+              {finished
+                ? "Ang galing ng bayanihan!"
+                : landing
+                  ? "Handa na ba kayo?"
+                  : "Bawat sagot, isang hakbang."}
+            </h1>
+          </div>
+          <span className="play-count">
+            3 istasyon <i>✦</i> {totalRounds} hamon
+          </span>
+        </div>
+        <StationTrail station={game.station} finished={finished} />
+        {landing ? (
+          <>
+            <div className="lobby-intro">
+              <p>
+                Tatlong istasyon. {totalRounds} hamon. Sama-sama sa pagtakbo!
+              </p>
+              <span>
+                ✦ Maaaring maglaro ang bawat grupo sa magkakaibang oras.
+              </span>
+            </div>
+            <StationCards />
+            <section className="lobby-instructions">
+              <PlayerInstructions />
+              <div className="start-game">
+                <div>
+                  <h2>Buong grupo, handa na?</h2>
+                  <p>Nagsisimula ang oras pagpasok sa unang istasyon.</p>
+                </div>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    mutate("/api/game/start", { version: game.version })
+                  }
+                  className="button"
+                >
+                  {busy ? "Sinisimulan…" : "MAGLARO"}{" "}
+                  <span aria-hidden="true">↗</span>
+                </button>
+              </div>
+            </section>
+          </>
+        ) : finished ? (
+          <section className="completion-panel">
+            <div className="celebration-stars" aria-hidden="true">
+              <span>✧</span>
+              <span>✦</span>
+              <span>✧</span>
+            </div>
+            <p className="eyebrow">LAHAT NG ISTASYON, NATAPOS!</p>
+            <h2>
+              Binabati namin kayo,
+              <br />
+              <span>{game.group}!</span>
+            </h2>
+            <p>
+              Natapos ninyo ang lahat ng hamon.
+              <br />
+              Bawat sagot, bawat ambag — tagumpay ng buong grupo.
+            </p>
+            <div className="final-time">
+              <span>KABUUANG ORAS</span>
+              <strong>
+                {game.totalElapsedMs === null
+                  ? "—"
+                  : formatTime(game.totalElapsedMs)}
+              </strong>
+              <small>Pinagsamang oras sa tatlong istasyon</small>
+            </div>
+            <span className="completion-ribbon">
+              ✓ 3 ISTASYON · {totalRounds} HAMON · ISANG GALING
+            </span>
+          </section>
+        ) : (
+          <section
+            className={`game-panel station-${game.station}`}
+            aria-labelledby="challenge-heading"
+          >
+            <div className="challenge-header">
+              <div>
+                <p className="eyebrow">
+                  ISTASYON 0{game.station} <span aria-hidden="true">/</span>{" "}
+                  {currentStation?.tag}
+                </p>
+                <h2 id="challenge-heading">{currentStation?.title}</h2>
+              </div>
+              <div className="station-timer">
+                <span>ORAS SA ISTASYON</span>
+                <strong aria-label="Oras">{formatTime(elapsed)}</strong>
+              </div>
+            </div>
+            <div className="round-progress">
+              <span>
+                Hamon <strong>{game.round}</strong> sa {counts[game.station]}
+              </span>
+              <div
+                className="round-dots"
+                aria-label={`Hamon ${game.round} sa ${counts[game.station]}`}
+              >
+                {Array.from(
+                  { length: counts[game.station] ?? 0 },
+                  (_, index) => (
+                    <span
+                      key={index}
+                      className={
+                        game.stationCompletedAt || index < game.round - 1
+                          ? "dot-complete"
+                          : index === game.round - 1
+                            ? "dot-current"
+                            : ""
+                      }
+                    />
+                  ),
+                )}
+              </div>
+            </div>
+            {!game.contentReady ? (
+              <p className="feedback feedback-hint">
+                Hindi pa handa ang nilalaman ng istasyong ito. Idaragdag pa ang
+                mga salita at larawan.
+              </p>
+            ) : !game.stationStartedAt ? (
+              <p className="feedback" role="status">
+                Sinisimulan ang oras at inihahanda ang hamon...
+              </p>
+            ) : game.stationCompletedAt ? (
+              <div className="station-success">
+                <span className="success-seal" aria-hidden="true">
+                  ✓
+                </span>
+                <p className="eyebrow">ISANG HAKBANG PALAPIT!</p>
+                <h3>Istasyon {game.station}, tapos na!</h3>
+                <p>
+                  Natapos ang istasyon sa{" "}
+                  <strong>{formatTime(game.elapsedMs ?? 0)}</strong>.
+                </p>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    mutate("/api/game/transition", {
+                      station: game.station,
+                      version: game.version,
+                    })
+                  }
+                  className="button"
+                >
+                  {game.station === 3 ? "Tapusin" : "Tuloy"}{" "}
+                  <span aria-hidden="true">→</span>
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="challenge-content">
+                  {game.station === 1 ? (
+                    <>
+                      <p className="challenge-instruction">
+                        Ayusin ang mga letra upang makabuo ng salita.
+                      </p>
+                      <div className="scrambled-board">
+                        <span className="eyebrow">
+                          ANONG SALITA ANG MABUBUO?
+                        </span>
+                        <p className="scrambled-word">
+                          {game.challenge?.scrambled}
+                        </p>
+                        <span className="word-board-note">
+                          Pag-isipan. Pag-usapan. Pagsama-samahin.
+                        </span>
+                      </div>
+                      <form
+                        onSubmit={(event: FormEvent) => {
+                          event.preventDefault();
+                          void mutate("/api/game/guess", {
+                            station: 1,
+                            round: game.round,
+                            version: game.version,
+                            answer,
+                          });
+                        }}
+                        className="answer-form"
+                      >
+                        <label htmlFor="word-answer">Ang sagot ng grupo</label>
+                        <div className="answer-row">
+                          <input
+                            id="word-answer"
+                            required
+                            autoComplete="off"
+                            value={answer}
+                            onChange={(e) => setAnswer(e.target.value)}
+                            placeholder="I-type ang nabuong salita"
+                          />
+                          <button disabled={busy} className="button">
+                            {busy ? "Sandali…" : "Hulaan"}{" "}
+                            <span aria-hidden="true">→</span>
+                          </button>
+                        </div>
+                      </form>
+                    </>
+                  ) : game.station === 2 ? (
+                    <>
+                      <p className="challenge-instruction">
+                        Ayusin ang mga larawan ayon sa tamang
+                        pagkakasunod-sunod.
+                      </p>
+                      <p className="control-help">
+                        I-drag gamit ang ☰ o gamitin ang ↑ at ↓. Maaari ring
+                        gamitin ang keyboard sa hawakan.
+                      </p>
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={dragEnd}
+                      >
+                        <SortableContext
+                          items={order}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <ol className="sequence-list">
+                            {order.map((id, index) => (
+                              <SortableImage
+                                key={id}
+                                id={id}
+                                src={images[id]}
+                                index={index}
+                                length={order.length}
+                                move={(from, to) =>
+                                  setOrder((current) =>
+                                    arrayMove(current, from, to),
+                                  )
+                                }
+                              />
+                            ))}
+                          </ol>
+                        </SortableContext>
+                      </DndContext>
+                      <button
+                        disabled={busy || Object.keys(images).length !== 5}
+                        onClick={() =>
+                          mutate("/api/game/sequence/check", {
+                            round: game.round,
+                            version: game.version,
+                            order,
+                          })
+                        }
+                        className="button"
+                      >
+                        {busy ? "Sandali…" : "I-check"}{" "}
+                        <span aria-hidden="true">→</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="challenge-instruction">
+                        Saang lalawigan matatagpuan ang lugar na ito?
+                      </p>
+                      {images.place ? (
+                        <div className="place-photo">
+                          <img
+                            src={images.place}
+                            alt="Lugar sa Pilipinas na kailangang tukuyin"
+                          />
+                        </div>
+                      ) : (
+                        <div className="image-loading" role="status">
+                          Kinukuha ang larawan...
+                        </div>
+                      )}
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          void mutate("/api/game/guess", {
+                            station: 3,
+                            round: game.round,
+                            version: game.version,
+                            answer,
+                          });
+                        }}
+                        className="answer-form"
+                      >
+                        <label htmlFor="province-filter">
+                          Hanapin ang lalawigan
+                        </label>
+                        <input
+                          id="province-filter"
+                          value={filter}
+                          onChange={(e) => {
+                            setFilter(e.target.value);
+                            setAnswer("");
+                          }}
+                          placeholder="Mag-type upang maghanap"
+                        />
+                        <label htmlFor="province-answer">
+                          Piliin ang sagot ng grupo
+                        </label>
+                        <div className="answer-row">
+                          <select
+                            id="province-answer"
+                            required
+                            value={answer}
+                            onChange={(e) => setAnswer(e.target.value)}
+                          >
+                            <option value="">Pumili ng lalawigan</option>
+                            {provinces
+                              .filter((x) =>
+                                x.name
+                                  .toLocaleLowerCase()
+                                  .includes(filter.toLocaleLowerCase()),
+                              )
+                              .map((x) => (
+                                <option key={x.id} value={x.id}>
+                                  {x.name}
+                                </option>
+                              ))}
+                          </select>
+                          <button
+                            disabled={busy || !images.place}
+                            className="button"
+                          >
+                            {busy ? "Sandali…" : "Hulaan"}{" "}
+                            <span aria-hidden="true">→</span>
+                          </button>
+                        </div>
+                      </form>
+                    </>
+                  )}
+                </div>
+                {game.station !== 2 && (
+                  <div className="hint-section">
+                    <button
+                      disabled={busy}
+                      onClick={() =>
+                        mutate("/api/game/hint", {
+                          station: game.station,
+                          round: game.round,
+                          version: game.version,
+                        })
+                      }
+                      className="button button-hint"
+                    >
+                      <span aria-hidden="true">✧</span> Gabay
+                    </button>
+                    <p>
+                      {game.station === 1
+                        ? "Magagamit makalipas ang 3 minuto sa salitang ito."
+                        : "Magagamit makalipas ang 5 minuto sa larawang ito."}
+                    </p>
+                  </div>
+                )}
+                {hint && (
+                  <p role="status" className="feedback feedback-hint">
+                    {hint}
+                  </p>
+                )}
+              </>
+            )}
+          </section>
+        )}
+        {error && (
+          <p role="alert" className="feedback feedback-error">
+            {error}
+          </p>
+        )}
+        {notice && (
+          <p
+            role="status"
+            className={
+              notice.correct
+                ? "feedback feedback-success"
+                : "feedback feedback-error"
+            }
+          >
+            {notice.message}
+          </p>
+        )}
+      </main>
+      <SiteFooter />
+    </div>
+  );
 }
