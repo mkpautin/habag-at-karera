@@ -22,6 +22,7 @@ services:
         condition: service_completed_successfully
     environment:
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      DATABASE_SSL_CA: ${DATABASE_SSL_CA:-}
     ports:
       - "${APP_PORT:-3000}:3000"
   migrate:
@@ -32,6 +33,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      DATABASE_SSL_CA: ${DATABASE_SSL_CA:-}
       GROUP_1_PASSWORD: ${GROUP_1_PASSWORD:?set GROUP_1_PASSWORD}
       GROUP_2_PASSWORD: ${GROUP_2_PASSWORD:?set GROUP_2_PASSWORD}
       GROUP_3_PASSWORD: ${GROUP_3_PASSWORD:?set GROUP_3_PASSWORD}

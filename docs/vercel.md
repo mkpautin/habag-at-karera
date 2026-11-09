@@ -26,6 +26,16 @@ DIRECT_DATABASE_URL=postgresql://postgres.PROJECT_REF:ENCODED_DATABASE_PASSWORD@
 
 Use your project's **database password**, and URL-encode special characters in the password when constructing a URL. Keep both URLs secret. The app uses its own group/admin authentication; Supabase Auth, a publishable/anon key, and a service-role API key are not needed.
 
+If login or migrations fail with `SELF_SIGNED_CERT_IN_CHAIN`, download your project's **server root certificate** from Supabase's Database Settings → SSL Configuration. In Vercel → Settings → Environment Variables, add **`DATABASE_SSL_CA`** for Production and paste the entire PEM certificate, including `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----`, with its line breaks. Then redeploy. The certificate contents belong in this variable, not a local filename. See [Supabase's SSL guide](https://supabase.com/docs/guides/platform/ssl-enforcement).
+
+For local migration and seed commands, the same certificate can be set in `.env` as a quoted value with escaped newlines:
+
+```dotenv
+DATABASE_SSL_CA="-----BEGIN CERTIFICATE-----\nREPLACE_WITH_CERTIFICATE_BODY\n-----END CERTIFICATE-----"
+```
+
+The server and migration/seed scripts use this CA with certificate and hostname verification enabled. With `DATABASE_SSL_CA` set, the app removes URL SSL parameters before passing its explicit TLS configuration to `pg`, so URL options cannot overwrite the CA. Without it, existing connection-string SSL settings apply. `sslmode=verify-full` makes the intended verification explicit and avoids the driver's `sslmode=require` warning. A local `NODE_EXTRA_CA_CERTS` terminal export does not configure Vercel; each deployment needs its own trust configuration. Never set `NODE_TLS_REJECT_UNAUTHORIZED=0` to resolve this error.
+
 Despite the variable name, `DIRECT_DATABASE_URL` can use the Session pooler: scripts need a session-compatible connection, and this option supports IPv4. Supabase's direct `db.PROJECT_REF.supabase.co` connection normally requires IPv6 unless your project has IPv4 support. See Supabase's [connection guide](https://supabase.com/docs/guides/database/connecting-to-postgres).
 
 Use the provided `postgres` database user for migrations and the application so it owns the game tables and can access them with row-level security enabled. The migration enables RLS on all six game tables without browser-role policies, preventing Data API clients from reading or changing accounts, sessions, or game state. Player authorization happens in the app's server API. Do not add public access policies for these tables. A custom runtime database role would need appropriate ownership or `BYPASSRLS`; the `anon` and `authenticated` roles are not runtime database credentials. See [Supabase RLS documentation](https://supabase.com/docs/guides/database/postgres/row-level-security).

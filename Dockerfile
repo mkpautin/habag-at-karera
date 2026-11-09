@@ -12,6 +12,7 @@ COPY package.json ./
 COPY scripts ./scripts
 COPY drizzle ./drizzle
 COPY src/lib/db/schema.ts ./src/lib/db/schema.ts
+COPY src/lib/db/connection-options.ts ./src/lib/db/connection-options.ts
 COPY src/lib/group-names.ts ./src/lib/group-names.ts
 USER node
 CMD ["sh", "-c", "node --import tsx scripts/migrate.ts && node --import tsx scripts/seed.ts"]
