@@ -8,12 +8,16 @@ import { groupNames } from '../src/lib/group-names';
 const passwords = z.object({ GROUP_1_PASSWORD: z.string().min(12), GROUP_2_PASSWORD: z.string().min(12), GROUP_3_PASSWORD: z.string().min(12), GROUP_4_PASSWORD: z.string().min(12), ADMIN_PASSWORD: z.string().min(12) }).parse(process.env);
 async function main() {
   try {
-    const prepared = await Promise.all(groupNames.map(async (name, index) => ({
+    const prepared = groupNames.map((name, index) => ({
       name,
       username: name.toLowerCase(),
       legacyUsername: `grupo${index + 1}`,
-      passwordHash: await argon2.hash(passwords[`GROUP_${index + 1}_PASSWORD` as keyof typeof passwords], { type: argon2.argon2id }),
-    })));
+      passwordHash: '',
+    }));
+    // Argon2 uses significant memory. Keep only one hash running on small deployment VMs.
+    for (const [index, account] of prepared.entries()) {
+      account.passwordHash = await argon2.hash(passwords[`GROUP_${index + 1}_PASSWORD` as keyof typeof passwords], { type: argon2.argon2id });
+    }
     const adminPasswordHash = await argon2.hash(passwords.ADMIN_PASSWORD, { type: argon2.argon2id });
     await db.transaction(async tx => {
       for (const { name, username, legacyUsername, passwordHash } of prepared) {
