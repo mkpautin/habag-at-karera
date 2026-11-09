@@ -14,7 +14,7 @@ services:
       timeout: 3s
       retries: 10
   app:
-    build: .
+    image: ${IMAGE_REPOSITORY:-ghcr.io/mkpautin/habag-at-karera}:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       migrate:
@@ -22,11 +22,9 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
   migrate:
-    build:
-      context: .
-      target: build
+    image: ${IMAGE_REPOSITORY:-ghcr.io/mkpautin/habag-at-karera}:${IMAGE_TAG:-latest}-migrate
     depends_on:
       db:
         condition: service_healthy
@@ -37,6 +35,5 @@ services:
       GROUP_3_PASSWORD: ${GROUP_3_PASSWORD:?set GROUP_3_PASSWORD}
       GROUP_4_PASSWORD: ${GROUP_4_PASSWORD:?set GROUP_4_PASSWORD}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
-    command: ["sh", "-c", "pnpm db:migrate && pnpm db:seed"]
 volumes:
   postgres_data:

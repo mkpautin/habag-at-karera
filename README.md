@@ -17,7 +17,9 @@ Multiplayer Filipino Amazing Race game for four groups. Next.js, PostgreSQL, Dri
 
 Rerun `pnpm db:seed` to synchronize names and usernames for existing groups. It renames `grupo1`–`grupo4` to the lowercase names above on the same account records, preserving passwords, sessions, timing records, and progress. Compose also runs this seed during setup. After seeding, use the new usernames to log in. If both a legacy account and its new username already exist, seeding stops without changing accounts so the conflict can be resolved explicitly.
 
-For a Compose deployment, `docker compose up --build` starts PostgreSQL, runs migrations and idempotent account seeding, then starts the app. Set `DATABASE_URL` to a URL using the `db` host.
+For a Compose deployment, set `DATABASE_URL` to a URL using the `db` host, then run `docker compose pull` and `docker compose up -d --no-build`. Both the app and its migration/seed service use prebuilt GHCR images. Wait for the updated GitHub workflow to publish both images first. See [docs/deployment.md](docs/deployment.md) for VM setup, registry authentication, and update commands.
+
+To build images on your development machine instead, use `docker compose -f compose.yaml -f compose.build.yaml up -d --build`.
 
 ## Challenge content
 
@@ -39,6 +41,6 @@ Database integration tests run when `TEST_DATABASE_URL` points to an empty dispo
 
 ## GitHub Actions and container images
 
-`.github/workflows/ci.yml` runs the checks and validates the Docker build for pull requests. Pushes to `main`, tags starting with `v`, and manual workflow runs publish the app and station images to `ghcr.io/mkpautin/habag-at-karera`. Images receive branch/tag and commit tags; `latest` is updated only by `main`. Publication waits for all checks to pass.
+`.github/workflows/ci.yml` runs the checks and validates both Docker targets for pull requests. Pushes to `main`, tags starting with `v`, and manual workflow runs publish the runtime and migration images to `ghcr.io/mkpautin/habag-at-karera`. The migration tags have a `-migrate` suffix; for example, `latest` and `latest-migrate`. Images receive branch/tag and commit tags; the latest pair is updated only by `main`. Publication waits for all checks to pass.
 
 The workflow uses `GITHUB_TOKEN` with `packages: write`; no Docker Hub credentials are required. Enable Actions and allow package publication in the repository or organization settings. See `docs/operations.md` for deployment details.

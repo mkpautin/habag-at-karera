@@ -1,0 +1,12 @@
+# Opt-in local builds. The base Compose file only pulls published images.
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+    pull_policy: build
+  migrate:
+    build:
+      context: .
+      target: migrate
+    pull_policy: build
