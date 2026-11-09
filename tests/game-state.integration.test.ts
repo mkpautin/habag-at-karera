@@ -3,7 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { test } from 'node:test';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Client } from 'pg';
 import { accounts, groups, rateLimits, roundRuns, sessions, stationRuns } from '../src/lib/db/schema';
@@ -46,6 +46,29 @@ test('finished totals and admin resets remain correct with stale and concurrent 
     assert.equal((await state(teams[0].id)).totalElapsedMs, 271_368);
     assert.equal((await state(teams[0].id)).totalElapsedMs, 271_368);
     assert.equal((await state(teams[1].id)).totalElapsedMs, null);
+
+    const security = await db.execute<{ relname: string; relrowsecurity: boolean }>(sql`
+      select relname, relrowsecurity from pg_class
+      where relnamespace = 'public'::regnamespace
+        and relname in ('accounts', 'sessions', 'groups', 'station_runs', 'round_runs', 'rate_limits')
+    `);
+    assert.equal(security.rows.length, 6);
+    assert.ok(security.rows.every(table => table.relrowsecurity), 'All application tables must enable RLS.');
+    // Simulate a Supabase Data API role with table grants but no row policies.
+    await db.execute(sql`create role habag_data_api nologin`);
+    await db.execute(sql`grant usage on schema public to habag_data_api`);
+    await db.execute(sql`grant select, insert, update, delete on public.accounts, public.sessions, public.groups, public.station_runs, public.round_runs, public.rate_limits to habag_data_api`);
+    await db.transaction(async tx => {
+      await tx.execute(sql`set local role habag_data_api`);
+      for (const table of [accounts, sessions, groups, stationRuns, roundRuns, rateLimits]) {
+        assert.equal((await tx.select().from(table)).length, 0, 'API client roles must not read game or account data.');
+      }
+    });
+    await assert.rejects(db.transaction(async tx => {
+      await tx.execute(sql`set local role habag_data_api`);
+      await tx.insert(accounts).values({ username: 'forbidden-browser-account', passwordHash: 'not-stored', role: 'GROUP' });
+    }), (error: unknown) => (error as { cause?: { code?: string } }).cause?.code === '42501');
+    assert.equal((await state(teams[0].id)).totalElapsedMs, 271_368, 'The server still reads authoritative game state.');
 
     const request = (token?: string, confirmation = 'RESET') => new Request('http://localhost/api/admin/reset', {
       method: 'POST',

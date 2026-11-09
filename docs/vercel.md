@@ -8,6 +8,30 @@ Create or connect a hosted PostgreSQL database through the [Vercel Marketplace](
 
 The app still requires PostgreSQL transactions, row locks, and database timestamps. Do not use the Compose hostname `db` or `localhost` in Vercel's database URL.
 
+### Supabase
+
+Create a Supabase project and open its **Connect** dialog. Copy the full shared pooler connection strings; the pooler hostname depends on your project and region.
+
+| Setting | Supabase connection | Where to set it |
+| --- | --- | --- |
+| `DATABASE_URL` | Transaction pooler, port **6543** | Local `.env` and Vercel Production |
+| `DIRECT_DATABASE_URL` | Session pooler, port **5432** | Local `.env` for migration and seed scripts |
+
+For example, replace every placeholder using the connection strings from Connect:
+
+```dotenv
+DATABASE_URL=postgresql://postgres.PROJECT_REF:ENCODED_DATABASE_PASSWORD@POOLER_HOST:6543/postgres?sslmode=require
+DIRECT_DATABASE_URL=postgresql://postgres.PROJECT_REF:ENCODED_DATABASE_PASSWORD@POOLER_HOST:5432/postgres?sslmode=require
+```
+
+Use your project's **database password**, and URL-encode special characters in the password when constructing a URL. Keep both URLs secret. The app uses its own group/admin authentication; Supabase Auth, a publishable/anon key, and a service-role API key are not needed.
+
+Despite the variable name, `DIRECT_DATABASE_URL` can use the Session pooler: scripts need a session-compatible connection, and this option supports IPv4. Supabase's direct `db.PROJECT_REF.supabase.co` connection normally requires IPv6 unless your project has IPv4 support. See Supabase's [connection guide](https://supabase.com/docs/guides/database/connecting-to-postgres).
+
+Use the provided `postgres` database user for migrations and the application so it owns the game tables and can access them with row-level security enabled. The migration enables RLS on all six game tables without browser-role policies, preventing Data API clients from reading or changing accounts, sessions, or game state. Player authorization happens in the app's server API. Do not add public access policies for these tables. A custom runtime database role would need appropriate ownership or `BYPASSRLS`; the `anon` and `authenticated` roles are not runtime database credentials. See [Supabase RLS documentation](https://supabase.com/docs/guides/database/postgres/row-level-security).
+
+Continue below to migrate and seed before deploying. Select a Vercel function region close to your Supabase project.
+
 A new database starts a new competition. To retain existing accounts and results, restore a PostgreSQL backup from the VM into the hosted database before applying migrations and seeding.
 
 ## 2. Apply migrations and seed accounts
