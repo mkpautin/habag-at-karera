@@ -74,8 +74,7 @@ export function PlayerInstructions() {
         </li>
       </ol>
       <p className="mt-5 font-semibold text-[var(--ink)]">
-        Kapag handa na ang lahat at may hudyat na ang tagapagpadaloy, isang
-        kasama lamang ang kailangang pumindot ng MAGLARO para sa buong grupo.
+        Kapag handa na ang lahat, isang miyembro lamang ang kailangang pumindot ng MAGLARO para sa buong grupo.
       </p>
     </section>
   );

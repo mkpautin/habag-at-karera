@@ -42,7 +42,7 @@ export function Brand() {
       </span>
       <span>
         habag <span className="brand-at">at</span> karera
-        <small>FILIPINO · EDUKASYON · PAKIKIPAGKAPWA</small>
+        <small>FILIPINO · EDUKASYON</small>
       </span>
     </Link>
   );

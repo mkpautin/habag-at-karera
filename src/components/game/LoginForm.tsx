@@ -38,7 +38,7 @@ export function LoginForm() {
       </SiteHeader>
       <main id="main-content" className="login-layout">
         <section className="login-intro">
-          <p className="eyebrow">MALIGAYANG PAGDATING, KAGRUPO!</p>
+          <p className="eyebrow">MALIGAYANG PAGDATING!</p>
           <h1>
             Mas masaya
             <br />
