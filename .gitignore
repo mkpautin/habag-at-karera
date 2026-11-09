@@ -14,3 +14,4 @@ private-assets/**
 !private-assets/station-3/*.jpg
 !private-assets/station-3/*.jpeg
 !private-assets/station-3/*.png
+.agents
