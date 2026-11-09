@@ -5,6 +5,6 @@ import { existsSync } from 'node:fs';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 
-const url = z.object({ DATABASE_URL: z.url() }).parse(process.env).DATABASE_URL;
+const url = z.url().parse(process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL);
 export const pool = new Pool({ connectionString: url, max: 2 });
 export const db = drizzle(pool);

@@ -2,6 +2,10 @@
 
 Multiplayer Filipino Amazing Race game for four groups. Next.js, PostgreSQL, Drizzle, SSE, and pnpm.
 
+## Deploy to Vercel
+
+The repository supports Vercel with hosted PostgreSQL. Follow [docs/vercel.md](docs/vercel.md) to provision the database, apply migrations and seed accounts, import the repository, and configure `DATABASE_URL`. Vercel hosts the app directly, without Docker or Caddy. On Vercel, group and admin updates poll every two seconds; Docker hosting retains SSE. Official progress and times remain in PostgreSQL.
+
 ## Run locally
 
 1. Copy `.env.example` to `.env` and replace all `change-me` values. Use passwords of at least 12 characters. For a local app outside Docker, set `DATABASE_URL` to `localhost`; for Compose, set it to `db`.

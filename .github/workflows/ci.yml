@@ -56,6 +56,12 @@ jobs:
         run: pnpm test
       - name: Build application
         run: pnpm build
+      - name: Build Vercel application
+        env:
+          VERCEL: '1'
+        run: pnpm build
+      - name: Verify Vercel private asset bundles
+        run: pnpm verify:vercel
 
   docker:
     name: Build and publish ${{ matrix.target }} image

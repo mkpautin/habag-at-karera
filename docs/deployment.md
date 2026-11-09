@@ -1,5 +1,7 @@
 # Deploying prebuilt images on an Azure VM
 
+For deployment without a VM, Docker, or Caddy, use the [Vercel guide](vercel.md) instead.
+
 The default `compose.yaml` pulls images. Neither the application nor the migration service has a build definition, so this deployment does not compile Next.js or install dependencies on the VM. The migration image already contains its dependencies, scripts, and Drizzle migrations. The app image includes the standalone server, public fonts, and private station assets.
 
 ## Publish both images first

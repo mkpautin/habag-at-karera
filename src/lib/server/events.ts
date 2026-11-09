@@ -2,6 +2,10 @@ import 'server-only';
 import { Client } from 'pg';
 
 export function eventStream(request: Request, groupId?: string) {
+  // Serverless deployments use short requests and work with transaction-pooled databases.
+  if (process.env.VERCEL === '1') {
+    return Response.json({ transport: 'poll', intervalMs: 2000 }, { headers: { 'Cache-Control': 'private, no-store' } });
+  }
   const encoder = new TextEncoder();
   let listener: Client | null = null;
   let heartbeat: ReturnType<typeof setInterval> | null = null;

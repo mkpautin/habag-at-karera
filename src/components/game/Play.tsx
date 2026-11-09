@@ -157,9 +157,7 @@ export function Play() {
     const controller = new AbortController();
     void streamEvents(
       "/api/game/events",
-      () => {
-        void refresh();
-      },
+      refresh,
       controller.signal,
     );
     const reconcile = setInterval(() => {
@@ -223,29 +221,34 @@ export function Play() {
       .then(setProvinces)
       .catch(() => undefined);
   }, [game?.station]);
+  const imageSourceKey = game?.station === 2 ? sequenceKey : game?.challenge?.image ?? '';
   useEffect(() => {
-    if (!game?.stationStartedAt || game.stationCompletedAt || !game.challenge)
+    if (!game?.stationStartedAt || game.stationCompletedAt || !imageSourceKey)
       return;
     const paths =
       game.station === 2
         ? Object.fromEntries(
-            (game.challenge.imageIds ?? []).map((id) => [
+            imageSourceKey.split(',').map((id) => [
               id,
               `/api/assets/sequence?round=${game.round}&id=${id}`,
             ]),
           )
         : game.station === 3
-          ? { place: game.challenge.image ?? "" }
+          ? { place: imageSourceKey }
           : {};
     let active = true;
+    const controller = new AbortController();
     const urls: string[] = [];
     void Promise.all(
       Object.entries(paths).map(async ([id, path]) => {
         const response = await fetch(path, {
           headers: { Authorization: `Bearer ${token()}` },
+          signal: controller.signal,
         });
         if (!response.ok) throw new Error("Hindi ma-load ang larawan.");
-        const url = URL.createObjectURL(await response.blob());
+        const blob = await response.blob();
+        if (!active) throw new Error('Nagbago na ang hamon.');
+        const url = URL.createObjectURL(blob);
         urls.push(url);
         return [id, url] as const;
       }),
@@ -263,6 +266,7 @@ export function Play() {
       });
     return () => {
       active = false;
+      controller.abort();
       urls.forEach(URL.revokeObjectURL);
       setImages({});
     };
@@ -271,7 +275,7 @@ export function Play() {
     game?.round,
     game?.stationStartedAt,
     game?.stationCompletedAt,
-    game?.challenge,
+    imageSourceKey,
   ]);
   async function mutate(path: string, data: object) {
     setBusy(true);

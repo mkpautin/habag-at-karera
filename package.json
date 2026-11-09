@@ -2,10 +2,12 @@
   "name": "habag-at-karera",
   "version": "0.1.0",
   "private": true,
+  "engines": { "node": "24.x" },
   "packageManager": "pnpm@12.14.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "verify:vercel": "tsx scripts/verify-vercel-traces.ts",
     "start": "next start",
     "typecheck": "tsc --noEmit --incremental false",
     "lint": "oxlint .",
@@ -18,6 +20,7 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@vercel/functions": "^3.11.0",
     "argon2": "^0.44.0",
     "drizzle-orm": "^0.44.0",
     "next": "^16.0.0",
@@ -25,6 +28,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "server-only": "^0.0.1",
+    "sharp": "^0.35.5",
     "zod": "^4.1.0"
   },
   "devDependencies": {

@@ -1,5 +1,7 @@
 # Local development and operations
 
+Vercel setup is documented in [vercel.md](vercel.md). It uses an externally hosted PostgreSQL database, `DATABASE_URL` at runtime, and optional `DIRECT_DATABASE_URL` for migration/seed scripts. The latter takes precedence in scripts and Drizzle configuration when present. Apply migrations before deployment; builds never change the database. Existing Docker/VM deployment remains available.
+
 ## Environment
 
 Document required variables in an `.env.example` file using placeholder values only. Validate application configuration at startup with Zod. Never commit real credentials, expose server-only variables with a `NEXT_PUBLIC_` prefix, or include secrets in Docker build arguments or image layers.

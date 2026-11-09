@@ -57,6 +57,24 @@ test('finished totals and admin resets remain correct with stale and concurrent 
     assert.equal((await POST(request(adminToken, 'wrong'))).status, 400);
     assert.equal((await state(teams[0].id)).phase, 'FINISHED');
 
+    const previousVercel = process.env.VERCEL;
+    try {
+      process.env.VERCEL = '1';
+      const [{ GET: groupEvents }, { GET: adminEvents }] = await Promise.all([
+        import('../src/app/api/game/events/route'),
+        import('../src/app/api/admin/events/route'),
+      ]);
+      const eventRequest = (token?: string) => new Request('http://localhost/api/game/events', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      assert.equal((await groupEvents(eventRequest())).status, 401);
+      assert.equal((await adminEvents(eventRequest(groupToken))).status, 403);
+      const poll = await groupEvents(eventRequest(groupToken));
+      assert.equal(poll.status, 200);
+      assert.deepEqual(await poll.json(), { transport: 'poll', intervalMs: 2000 });
+      assert.equal((await adminEvents(eventRequest(adminToken))).status, 200);
+    } finally {
+      if (previousVercel === undefined) delete process.env.VERCEL; else process.env.VERCEL = previousVercel;
+    }
+
     await listener.connect();
     await listener.query('LISTEN habag_state');
     const events: { groupId: string; version: number }[] = [];
@@ -116,6 +134,7 @@ test('finished totals and admin resets remain correct with stale and concurrent 
       env: {
         ...process.env,
         DATABASE_URL: testUrl,
+        DIRECT_DATABASE_URL: testUrl,
         GROUP_1_PASSWORD: password,
         GROUP_2_PASSWORD: password,
         GROUP_3_PASSWORD: password,

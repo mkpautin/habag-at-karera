@@ -1,4 +1,9 @@
 import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = { output: 'standalone' };
+const nextConfig: NextConfig = {
+  ...(process.env.VERCEL === '1' ? {} : { output: 'standalone' }),
+  outputFileTracingIncludes: {
+    '/api/**': ['./private-assets/**/*'],
+  },
+};
 export default nextConfig;

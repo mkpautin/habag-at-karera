@@ -95,9 +95,7 @@ export function Admin() {
     const controller = new AbortController();
     void streamEvents(
       "/api/admin/events",
-      () => {
-        void refresh();
-      },
+      refresh,
       controller.signal,
     );
     const timer = setInterval(() => {

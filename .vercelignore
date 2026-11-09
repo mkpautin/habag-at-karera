@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+.agents
+.git
+.next
+node_modules
+*.tsbuildinfo
